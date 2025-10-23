@@ -1,0 +1,80 @@
+version: '0.1'
+
+services:
+  # 🐘 Base de datos PostgreSQL
+  postgres:
+    image: postgres:15
+    container_name: cashcapital_db
+    environment:
+      POSTGRES_DB: cashcapital
+      POSTGRES_USER: developer
+      POSTGRES_PASSWORD: dev123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - cashcapital_network
+
+  # 📊 Administrador de base de datos (Interfaz visual)
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: cashcapital_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@cashcapital.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+    networks:
+      - cashcapital_network
+
+  # ⚙️ Backend (Node.js)
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.dev
+    container_name: cashcapital_backend
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://developer:dev123@postgres:5432/cashcapital
+      - JWT_SECRET=super-secreto-para-desarrollo
+    volumes:
+      - ../backend:/app
+      - /app/node_modules
+    depends_on:
+      - postgres
+    networks:
+      - cashcapital_network
+    command: npm run dev
+
+  # 🎨 Frontend (React)
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.dev
+    container_name: cashcapital_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:3001
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - cashcapital_network
+    command: npm run dev
+
+# Configuraciones de Docker
+volumes:
+  postgres_data:
+
+networks:
+  cashcapital_network:
+    driver: bridge

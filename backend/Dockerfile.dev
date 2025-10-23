@@ -1,0 +1,20 @@
+# Imagen base de Node.js
+FROM node:18-alpine
+
+# Directorio de trabajo en el contenedor
+WORKDIR /app
+
+# Copiar archivos de dependencias primero (para cache)
+COPY package*.json ./
+
+# Instalar dependencias
+RUN npm install
+
+# Copiar todo el código fuente
+COPY . .
+
+# Exponer el puerto
+EXPOSE 3001
+
+# Comando para desarrollo (recarga automática)
+CMD ["npm", "run", "dev"]
