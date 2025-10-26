@@ -1,4 +1,4 @@
-version: '0.1'
+version: '3.9'
 
 services:
   # 🐘 Base de datos PostgreSQL
@@ -30,6 +30,21 @@ services:
       - postgres
     networks:
       - cashcapital_network
+  
+# 🧠 Administrador visual de base de datos (DBeaver CloudBeaver)
+  dbeaver:
+    image: dbeaver/cloudbeaver
+    container_name: cashcapital_dbeaver
+    ports:
+      - "8090:8978"   # Interfaz web en http://localhost:8080
+    environment:
+      - CB_ADMIN_NAME=admin
+      - CB_ADMIN_PASSWORD=admin123
+    depends_on:
+      - postgres
+    networks:
+      - cashcapital_network
+
 
   # ⚙️ Backend (Node.js)
   backend:
