@@ -17,9 +17,9 @@ Una aplicación educativa que combina aprendizaje financiero con gamificación.
 
 ## 👥 Equipo
 
-- Alejandro 
-- [Nombre compañero 2]
-- [Nombre compañero 3]
+- Diego Alejandro Calderon Veloza
+- Juan David Carreño Gomez
+- Juan Sebastian Coy Duarte
 
 ---
 
