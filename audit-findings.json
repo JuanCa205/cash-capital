@@ -1,0 +1,810 @@
+{
+  "meta": {
+    "project": "Cash Capital",
+    "date": "2026-05-25",
+    "auditors": ["Code Review Agent", "UX Architect Agent", "Security Engineer Agent"],
+    "scores": {
+      "code_quality": "5.5/10",
+      "ui_ux": "7/10",
+      "security": "2/10"
+    },
+    "total_issues": 53,
+    "files_audited": 16
+  },
+
+  "summary_by_priority": {
+    "P1_critical": 15,
+    "P2_high": 18,
+    "P3_medium": 14,
+    "P4_low": 8
+  },
+
+  "issues": {
+    "P1_security": {
+      "label": "🔴 PRIORIDAD 1 — SEGURIDAD (15 issues)",
+      "risk": "CRÍTICO — Vulnerabilidades multi-tenant activas. Cualquier usuario autenticado puede acceder/modificar datos de otros.",
+      "items": [
+        {
+          "id": "SEC-001",
+          "title": "RLS deshabilitado en TODAS las 41 tablas",
+          "severity": "critical",
+          "file": "N/A (BD)",
+          "detail": "No existe ni una sola Row Level Security policy en ninguna tabla de la BD. Cualquier usuario autenticado puede leer, insertar, actualizar o borrar datos de cualquier otro usuario mediante consultas directas a Supabase.",
+          "impact": "Pérdida total de aislamiento multi-tenant. Exposición completa de todos los datos de todos los usuarios.",
+          "fix": "Crear policies RLS para cada tabla con: CREATE POLICY \"users_own_records\" ON <tabla> USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id).",
+          "effort": "2-3 horas (41 tablas x ~2 policies c/u)",
+          "depends_on": []
+        },
+        {
+          "id": "SEC-002",
+          "title": "user_id confiado desde el frontend sin verificación en BD",
+          "severity": "critical",
+          "file": "Todas las páginas protegidas",
+          "detail": "Las queries pasan `user.id` desde el frontend: `.eq('user_id', user.id)`. Sin RLS, si un usuario modifica el ID en la request (devtools/consola), puede acceder a datos de cualquier otro usuario. El backend confía ciegamente en el ID enviado.",
+          "impact": "Un usuario puede hacer `.eq('user_id', 'otro-user-id')` y leer datos ajenos.",
+          "fix": "Implementar RLS policies. Mientras tanto, usar funciones server-side o validar que user.id coincide con auth.uid() en cada query.",
+          "effort": "5-10 min c/query",
+          "depends_on": ["SEC-001"]
+        },
+        {
+          "id": "SEC-003",
+          "title": "Datos sensibles de perfil expuestos sin control",
+          "severity": "critical",
+          "file": "src/contexts/AuthContext.tsx (líneas 48-62), src/pages/PerfilPage.tsx (líneas 118-134)",
+          "detail": "`user_profiles` contiene `phone`, `country`, `city`, `first_name`, `last_name`, `total_points`, `financial_score`. Todos estos campos se exponen al frontend sin restricción y se muestran en PerfilPage. Sin RLS, cualquier usuario puede leer los datos de perfil de cualquier otro.",
+          "impact": "Exposición de datos personales (teléfono, ubicación) de todos los usuarios.",
+          "fix": "RLS + considerar una vista reducida para datos públicos vs. privados. Evaluar si `phone` debe exponerse.",
+          "effort": "1-2 horas",
+          "depends_on": ["SEC-001"]
+        },
+        {
+          "id": "SEC-004",
+          "title": "Sin validación de inputs antes de enviar a Supabase",
+          "severity": "high",
+          "file": "src/pages/AuthPage.tsx, src/pages/PerfilPage.tsx",
+          "detail": "Los inputs de nombre, email y contraseña se envían directamente a Supabase sin sanitización ni validación del lado del frontend más allá de `required` y `minLength`. Potencial para inyección de datos maliciosos en `first_name` y `last_name`.",
+          "impact": "Posible XSS almacenado si esos campos se renderizan sin escapar. Datos sucios en BD.",
+          "fix": "Sanitizar inputs: trim(), escapar HTML, validar longitud máxima, validar formato de email antes de enviar.",
+          "effort": "30 min",
+          "depends_on": []
+        },
+        {
+          "id": "SEC-005",
+          "title": "Queries sin filtro de user.id en AprenderPage",
+          "severity": "high",
+          "file": "src/pages/AprenderPage.tsx (líneas 22-53)",
+          "detail": "La query de `educational_modules` y `lessons` no filtra por `user_id` — aunque estos datos son públicos por diseño (módulos educativos globales), la query de `lesson_progress` sí filtra por user.id pero sin RLS es insegura.",
+          "impact": "Menor, porque modules/lessons son globales. Pero lesson_progress es por usuario y debe protegerse.",
+          "fix": "Agregar RLS en lesson_progress. Considerar si modules/lessons necesitan restricción.",
+          "effort": "30 min",
+          "depends_on": ["SEC-001"]
+        },
+        {
+          "id": "SEC-006",
+          "title": "AuthContext.fetchProfile() sin manejo de error en .single()",
+          "severity": "high",
+          "file": "src/contexts/AuthContext.tsx (líneas 48-62)",
+          "detail": "`.single()` en Supabase lanza error si hay 0 o más de 1 fila. Si el perfil no existe (registro incompleto), `fetchProfile` lanza una excepción no capturada que puede dejar la app en estado inconsistente (loading perpetuo).",
+          "impact": "Usuario autenticado sin perfil no puede usar la app — queda en loading infinito.",
+          "fix": "Usar `.maybeSingle()` en lugar de `.single()` y manejar el caso de perfil nulo.",
+          "effort": "15 min",
+          "depends_on": []
+        },
+        {
+          "id": "SEC-007",
+          "title": "AuthContext.register() no verifica errores de queries auxiliares",
+          "severity": "medium",
+          "file": "src/contexts/AuthContext.tsx (líneas 81-104)",
+          "detail": "La query para obtener `firstLevel.id` no verifica si falló. Si no existe nivel 1 en la BD, `firstLevel?.id` es undefined y `current_level_id` se inserta como null. Además, los errores de profile/settings insert solo se loguean como warning, no se reportan al usuario.",
+          "impact": "Usuario se registra pero queda sin nivel asignado. Warnings silenciosos.",
+          "fix": "Verificar si firstLevel existe, si no, crearlo. Reportar errores al usuario.",
+          "effort": "20 min",
+          "depends_on": []
+        },
+        {
+          "id": "SEC-008",
+          "title": "console.warn expone detalles internos de errores de BD",
+          "severity": "medium",
+          "file": "src/contexts/AuthContext.tsx (líneas 95, 103)",
+          "detail": "Se usa `console.warn('Error creando perfil:', profileError.message)` que expone en consola del navegador el mensaje de error real de Supabase. En desarrollo no es grave, pero en producción puede filtrar información de esquema.",
+          "impact": "Bajo. Solo visible si el usuario abre devtools.",
+          "fix": "Usar logger server-side o solo en desarrollo condicional.",
+          "effort": "5 min",
+          "depends_on": []
+        },
+        {
+          "id": "SEC-009",
+          "title": "Sin rate limiting en login desde el frontend",
+          "severity": "medium",
+          "file": "src/pages/AuthPage.tsx (LoginForm)",
+          "detail": "El formulario de login no tiene protección contra fuerza bruta (debounce progresivo, captcha, límite de intentos). Supabase tiene rate limiting server-side, pero no hay feedback visual ni bloqueo local.",
+          "impact": "Ataque de fuerza bruta posible (aunque limitado por Supabase server-side).",
+          "fix": "Agregar contador de intentos locales, cooldown progresivo, y eventualmente Google reCAPTCHA de Supabase.",
+          "effort": "30 min",
+          "depends_on": []
+        },
+        {
+          "id": "SEC-010",
+          "title": "Sesión sin timeout — duración indefinida",
+          "severity": "medium",
+          "file": "src/contexts/AuthContext.tsx",
+          "detail": "No se configura expiración de sesión. La sesión de Supabase dura por defecto 3600 segundos (1 hora) con refresh automático, pero no se controla desde la app. Un usuario que cierra el navegador sin cerrar sesión mantiene la sesión activa.",
+          "impact": "Riesgo de sesiones abandonadas activas en dispositivos compartidos.",
+          "fix": "Configurar `potencia` de sesión en Supabase o agregar heartbeat check.",
+          "effort": "30 min",
+          "depends_on": []
+        },
+        {
+          "id": "SEC-011",
+          "title": "Sin verificación de email antes de login exitoso",
+          "severity": "low",
+          "file": "src/pages/AuthPage.tsx (LoginForm)",
+          "detail": "El login permite acceso incluso si el email no está confirmado (depende de configuración de Supabase). No hay aviso al usuario sobre confirmación pendiente.",
+          "impact": "Usuario puede intentar loguearse con email no confirmado y recibir error genérico.",
+          "fix": "En el ERROR_MAP, agregar entrada para 'Email not confirmed' y sugerir reenvío de confirmación.",
+          "effort": "10 min",
+          "depends_on": []
+        },
+        {
+          "id": "SEC-012",
+          "title": "Sin sanitización en first_name/last_name (XSS almacenado potencial)",
+          "severity": "low",
+          "file": "src/pages/AuthPage.tsx (RegisterForm), src/pages/PerfilPage.tsx",
+          "detail": "`first_name` y `last_name` se guardan tal como se escriben y se renderizan directamente en múltiples lugares (`{profile?.first_name}`). Si alguien inyecta HTML/JS, se ejecutaría al renderizar.",
+          "impact": "Potencial XSS almacenado. React escapa por defecto en JSX, pero si se usa `dangerouslySetInnerHTML` o se renderiza en atributos sin escapado, hay riesgo.",
+          "fix": "Sanitizar en el frontend antes de enviar (trim, maxLength, strip tags) y confiar en el escapado de React.",
+          "effort": "15 min",
+          "depends_on": []
+        },
+        {
+          "id": "SEC-013",
+          "title": "No hay HTTPS forzado ni Content Security Policy",
+          "severity": "low",
+          "file": "index.html",
+          "detail": "El `index.html` no define CSP headers ni force HTTPS. En desarrollo local no es crítico, pero en producción expone a XSS y MITM.",
+          "impact": "Riesgo de seguridad en producción.",
+          "fix": "Agregar meta tag CSP en index.html y configurar HTTPS en producción.",
+          "effort": "15 min",
+          "depends_on": []
+        },
+        {
+          "id": "SEC-014",
+          "title": "Fallback inseguro en cliente Supabase a localhost:8000",
+          "severity": "low",
+          "file": "src/lib/supabase.ts",
+          "detail": "Si faltan VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY, el cliente apunta a localhost:8000 sin autenticación. Usuarios sin .env funcional conectan a una instancia local potencialmente no configurada.",
+          "impact": "Bajo (solo en desarrollo local sin .env).",
+          "fix": "Mejor lanzar error claro que tener fallback silencioso a localhost.",
+          "effort": "5 min",
+          "depends_on": []
+        },
+        {
+          "id": "SEC-015",
+          "title": "Sin auditoría de acceso a datos sensibles",
+          "severity": "low",
+          "file": "N/A",
+          "detail": "No hay logging de accesos a datos personales (quién leyó el teléfono de quién). Sin RLS ni auditoría, es imposible detectar accesos no autorizados.",
+          "impact": "No detectable si ocurre una brecha.",
+          "fix": "Implementar Supabase Audit o logging de accesos a user_profiles.",
+          "effort": "1-2 horas",
+          "depends_on": ["SEC-001"]
+        }
+      ]
+    },
+
+    "P2_code_quality": {
+      "label": "🟠 PRIORIDAD 2 — CALIDAD DE CÓDIGO (18 issues)",
+      "risk": "ALTO — Type safety comprometido, rendimiento degradado, código duplicado difícil de mantener.",
+      "items": [
+        {
+          "id": "COD-001",
+          "title": "Casteo `as unknown as` en InicioPage (incomes/expenses)",
+          "severity": "high",
+          "file": "src/pages/InicioPage.tsx (líneas 41-42)",
+          "detail": "`supabase.from('incomes').select('amount')... as unknown as { data: { amount: number }[] }` — rompe completamente el type safety de TypeScript. El tipo real devuelto por Supabase es `PostgrestResponse<{ amount: number }>`, no el tipo casteado.",
+          "impact": "Si la estructura de la respuesta cambia (array vs objeto, null vs undefined), TypeScript no detectará el error. Causa potencial de bugs en runtime.",
+          "fix": "Usar el tipo correcto: `const { data: incomeData } = await supabase.from('incomes').select('amount')...` y luego tipar `incomeData` con el tipo correcto de `database.ts`. Alternativa: usar `select('amount')` sin casteo, el tipo se infiere.",
+          "effort": "30 min",
+          "depends_on": []
+        },
+        {
+          "id": "COD-002",
+          "title": "Casteos `as` masivos en todas las páginas",
+          "severity": "high",
+          "file": "InicioPage.tsx (49-62), AprenderPage.tsx (51), MisFinanzasPage.tsx (39-43), RetosPage.tsx (37-52), PerfilPage.tsx (30)",
+          "detail": "Todas las páginas usan `as Tipo` para castear resultados de Supabase. Ej: `setIncomes(incomeData as Income[])`. Esto desactiva la verificación de tipos y oculta errores de estructura.",
+          "impact": "Acumulación de deuda técnica de tipos. Cualquier cambio en la BD o en las queries no será detectado por el compilador.",
+          "fix": "Refactorizar usando tipos inferidos de Supabase o validar estructura con zod. Alternativa rápida: usar PostgrestFilterTypes.",
+          "effort": "2-3 horas (todas las páginas)",
+          "depends_on": []
+        },
+        {
+          "id": "COD-003",
+          "title": "N+1 queries en AprenderPage",
+          "severity": "high",
+          "file": "src/pages/AprenderPage.tsx (líneas 33-56)",
+          "detail": "Por cada módulo educativo (hasta 5), se ejecuta una query de lecciones. Por cada lección (hasta ~15), se ejecuta una query de progreso. Esto resulta en 1 + N + N*M consultas (ej: 1 + 5 + 25 = 31 queries para 5 módulos con 5 lecciones c/u).",
+          "impact": "Degradación de rendimiento en carga inicial. 31+ requests a Supabase secuenciales.",
+          "fix": "Usar Supabase joins: `supabase.from('educational_modules').select('*, lessons(*, lesson_progress!inner(*)))')` o hacer batch queries con IN clause.",
+          "effort": "1-2 horas",
+          "depends_on": []
+        },
+        {
+          "id": "COD-004",
+          "title": "Record<string, unknown> en RetosPage pierde type safety",
+          "severity": "high",
+          "file": "src/pages/RetosPage.tsx (línea 37)",
+          "detail": "`.map((c: Record<string, unknown>) => ({ ...(c.challenges as Challenge), progress: c.progress_value as number, status: c.status as string }))` — uso de `Record<string, unknown>` con múltiples casteos `as`.",
+          "impact": "Si la relación cambia (challenges renombrado, progress_value cambia de tipo), no hay protección del compilador.",
+          "fix": "Tipar correctamente el join de Supabase o usar una interfaz intermedia.",
+          "effort": "30 min",
+          "depends_on": []
+        },
+        {
+          "id": "COD-005",
+          "title": "Interfaces inline en lugar de importar desde database.ts",
+          "severity": "medium",
+          "file": "src/pages/AprenderPage.tsx (líneas 8-10)",
+          "detail": "`ModuleWithProgress` se define inline en la página. Si otro componente necesita el mismo tipo, se duplicará.",
+          "impact": "Bajo ahora, pero escalará mal. Violación de la regla 9 de AGENTS.md (no crear interfaces inline nunca).",
+          "fix": "Mover la interfaz a types/database.ts o types/index.ts.",
+          "effort": "10 min",
+          "depends_on": []
+        },
+        {
+          "id": "COD-006",
+          "title": "MisFinanzasPage: setLoading() se llama pero no se usa para UI",
+          "severity": "medium",
+          "file": "src/pages/MisFinanzasPage.tsx (línea 15: `const [, setLoading] = useState(true)`)",
+          "detail": "El estado `loading` se setea a `false` al terminar (línea 44) pero nunca se usa para condicionales de render. La variable se descarta con `,` en la desestructuración. No hay spinner ni skeleton.",
+          "impact": "El usuario no recibe feedback visual de carga. Puede ver datos vacíos momentáneamente.",
+          "fix": "Usar `loading` para mostrar skeleton mientras carga, o eliminar el estado si no se usa.",
+          "effort": "15 min",
+          "depends_on": []
+        },
+        {
+          "id": "COD-007",
+          "title": "PerfilPage: sin estado loading para goals",
+          "severity": "medium",
+          "file": "src/pages/PerfilPage.tsx",
+          "detail": "Financial goals se cargan con fetch pero no hay estado loading. Si la query tarda, se muestra 'Sin metas financieras' momentáneamente hasta que llegan los datos.",
+          "impact": "Flash de contenido vacío antes de mostrar datos reales.",
+          "fix": "Agregar estado loading y mostrar skeleton mientras carga.",
+          "effort": "15 min",
+          "depends_on": []
+        },
+        {
+          "id": "COD-008",
+          "title": "Sin manejo de error en queries Supabase",
+          "severity": "medium",
+          "file": "Todas las páginas",
+          "detail": "Ninguna query tiene try/catch. Si una query falla (timeout, error de red, error de BD), la app no lo maneja — simplemente no se setean los datos y la app queda en un estado parcial. Ej: si falla la query de tips, el tip se queda null y muestra el texto placeholder.",
+          "impact": "Fallas silenciosas. El usuario no sabe si algo salió mal.",
+          "fix": "Agregar manejo de error por query o global. Mostrar toast/banner de error.",
+          "effort": "1-2 horas (todas las queries)",
+          "depends_on": []
+        },
+        {
+          "id": "COD-009",
+          "title": "Dependencias de useEffect incompletas",
+          "severity": "medium",
+          "file": "InicioPage.tsx (línea 66: `[user, profile]`), AprenderPage.tsx (línea 63: `[user]`), RetosPage.tsx (línea 57: `[user]`)",
+          "detail": "Los effects usan `user` y `profile` dentro pero no siempre los listan como dependencias. En AprenderPage, se usa `user.id` dentro del effect pero la dependencia es solo `[user]` (correcto). En InicioPage, depende de `[user, profile]` pero `profile` cambia cuando se refresca, lo que puede causar re-fetches innecesarios.",
+          "impact": "Re-renders innecesarios o datos desactualizados.",
+          "fix": "Revisar array de dependencias de cada useEffect con exhaustive-deps.",
+          "effort": "20 min",
+          "depends_on": []
+        },
+        {
+          "id": "COD-010",
+          "title": "useEffect sin cleanup en páginas con fetch asíncrono",
+          "severity": "medium",
+          "file": "Todas las páginas protegidas",
+          "detail": "Ninguna página limpia su efecto si el componente se desmonta antes de que el fetch termine. Esto puede causar: (1) setState en componente desmontado, (2) race conditions si el usuario navega rápido.",
+          "impact": "Warning de React 'Can't perform a React state update on an unmounted component'.",
+          "fix": "Usar flag `let cancelled = false` o AbortController en cada efecto.",
+          "effort": "30 min (todas las páginas)",
+          "depends_on": []
+        },
+        {
+          "id": "COD-011",
+          "title": "Patrón ProgressBar duplicado 5+ veces",
+          "severity": "medium",
+          "file": "InicioPage.tsx (100, 140-141), AprenderPage.tsx (86-88), RetosPage.tsx (115-116), MisFinanzasPage.tsx (168-169)",
+          "detail": "La misma barra de progreso con `h-3 bg-theme-muted rounded-full overflow-hidden` y `bg-gradient-to-r from-violet-500 to-fuchsia-500` aparece 5+ veces. Cada variación tiene mínimo 4 líneas de HTML+Tailwind.",
+          "impact": "Inconsistencias visuales si se modifica en un solo lugar. Dificulta el mantenimiento.",
+          "fix": "Crear componente `<ProgressBar percent={n} size=\"sm|md|lg\" color=\"violet|emerald|...\" />` en src/components/. Refactorizar las 5 instancias.",
+          "effort": "30 min",
+          "depends_on": []
+        },
+        {
+          "id": "COD-012",
+          "title": "Patrón DifficultyBadge duplicado 3+ veces",
+          "severity": "medium",
+          "file": "AprenderPage.tsx (127-133), y referencias indirectas en InicioPage, RetosPage",
+          "detail": "Badge de dificultad con clases condicionales `bg-emerald-500/15 text-emerald-400 | bg-amber-... | bg-red-...` se repite al menos 3 veces.",
+          "impact": "Inconsistencia si se cambia el diseño.",
+          "fix": "Crear componente `<DifficultyBadge level=\"basic|intermediate|advanced\" />`.",
+          "effort": "20 min",
+          "depends_on": []
+        },
+        {
+          "id": "COD-013",
+          "title": "Patrón EmptyState duplicado 8+ veces",
+          "severity": "medium",
+          "file": "InicioPage.tsx (107-108, 130-131), AprenderPage.tsx (102-105, 140-141), MisFinanzasPage.tsx (89-90, 111-112, 157-158), RetosPage.tsx (102-103, 135-136, 157-158, 183-184), PerfilPage.tsx (189-190)",
+          "detail": "Patrón `icono + texto centrado + py-16` se repite en todas las secciones. Mínimo 8 ocurrencias. El texto varía pero la estructura es idéntica.",
+          "impact": "Mucho código repetido. Si se decide cambiar el estilo de empty states, hay que tocarlo en 8+ lugares.",
+          "fix": "Crear componente `<EmptyState icon={Component} message=\"...\" />`.",
+          "effort": "20 min",
+          "depends_on": []
+        },
+        {
+          "id": "COD-014",
+          "title": "StatCard acepta `color` como string sin restricción",
+          "severity": "low",
+          "file": "src/components/StatCard.tsx",
+          "detail": "La prop `color` es de tipo `string`, no un union type. Se puede pasar cualquier valor y no habrá error de compilación.",
+          "impact": "Bajo. Pero si alguien pasa `color=\"chartreuse\"` no funciona y no hay advertencia.",
+          "fix": "Tipar como `'violet' | 'orange' | 'green' | 'red'`.",
+          "effort": "5 min",
+          "depends_on": []
+        },
+        {
+          "id": "COD-015",
+          "title": "MiniCard componente privado en MisFinanzasPage no reutilizable",
+          "severity": "low",
+          "file": "src/pages/MisFinanzasPage.tsx (líneas 150-177)",
+          "detail": "MiniCard se define como función privada dentro del mismo archivo. Si se necesita en otra página, no se puede importar.",
+          "impact": "Bajo ahora. Pero viola el principio DRY y la regla 19 de AGENTS.md.",
+          "fix": "Mover a `src/components/MiniCard.tsx` o generalizar SectionCard para cubrir este patrón.",
+          "effort": "15 min",
+          "depends_on": []
+        },
+        {
+          "id": "COD-016",
+          "title": "Importaciones desordenadas en varias páginas",
+          "severity": "low",
+          "file": "InicioPage.tsx, AprenderPage.tsx, RetosPage.tsx, PerfilPage.tsx",
+          "detail": "Los imports mezclan React, librerías de terceros, contextos, componentes, Lucide icons y tipos sin un orden consistente. AGENTS.md especifica orden: React/terceros → contextos → componentes → lucide → types.",
+          "impact": "Inconsistencia estética. Dificulta lectura.",
+          "fix": "Reordenar imports según la convención de AGENTS.md.",
+          "effort": "15 min (4 archivos)",
+          "depends_on": []
+        },
+        {
+          "id": "COD-017",
+          "title": "/* eslint-disable */ en AuthContext.tsx y PerfilPage.tsx",
+          "severity": "low",
+          "file": "src/contexts/AuthContext.tsx (línea 1), src/pages/PerfilPage.tsx (línea 9)",
+          "detail": "AuthContext deshabilita `react-refresh/only-export-components` y `react-hooks/set-state-in-effect`. PerfilPage deshabilita `react-hooks/set-state-in-effect`. Son 2 archivos que desactivan reglas de lint en lugar de corregir el problema subyacente.",
+          "impact": "Se pierde la protección de ESLint en esos archivos.",
+          "fix": "AuthContext: el `set-state-in-effect` es necesario por diseño. El `only-export-components` se puede evitar exportando el provider como named export. PerfilPage: el setState en effect se puede refactorizar.",
+          "effort": "30 min",
+          "depends_on": []
+        },
+        {
+          "id": "COD-018",
+          "title": "Sin tests automatizados de ningún tipo",
+          "severity": "low",
+          "file": "N/A",
+          "detail": "No hay un solo archivo de test (unit, integration, e2e). Cero cobertura de pruebas.",
+          "impact": "Cada cambio requiere validación manual. Riesgo de regression.",
+          "fix": "Empezar con tests unitarios para utils.ts y para los componentes compartidos.",
+          "effort": "4-8 horas (setup + tests iniciales)",
+          "depends_on": []
+        }
+      ]
+    },
+
+    "P3_ui_ux": {
+      "label": "🟡 PRIORIDAD 3 — UI/UX (14 issues)",
+      "risk": "MEDIO — La app es funcional pero tiene carencias de accesibilidad, consistencia visual y feedback de carga.",
+      "items": [
+        {
+          "id": "UIX-001",
+          "title": "ThemeToggle sin aria-label",
+          "severity": "medium",
+          "file": "src/components/ThemeToggle.tsx",
+          "detail": "El botón de cambio de tema solo tiene un icono Sun/Moon sin texto ni aria-label. Los lectores de pantalla no pueden anunciar su propósito.",
+          "impact": "Inaccesible para usuarios con discapacidad visual que usan lectores de pantalla.",
+          "fix": "Agregar `aria-label=\"Cambiar a modo ${nextTheme}\"` y `title=\"${nextTheme}\"`.",
+          "effort": "5 min",
+          "depends_on": []
+        },
+        {
+          "id": "UIX-002",
+          "title": "BottomNav sin aria-label en los links",
+          "severity": "medium",
+          "file": "src/components/BottomNav.tsx (líneas 17-41)",
+          "detail": "Los NavLink en BottomNav no tienen aria-label. Solo el texto pequeño (`text-[10px]`) describe el destino. Los lectores de pantalla pueden no interpretar correctamente los iconos.",
+          "impact": "Navegación mobile inaccesible.",
+          "fix": "Agregar `aria-label={item.label}` en cada NavLink.",
+          "effort": "5 min",
+          "depends_on": []
+        },
+        {
+          "id": "UIX-003",
+          "title": "Iconos decorativos sin aria-hidden",
+          "severity": "medium",
+          "file": "Todas las páginas y componentes",
+          "detail": "Los iconos de Lucide se usan como decoración visual pero no tienen `aria-hidden=\"true\"`. Los lectores de pantalla pueden intentar leer nombres de iconos (\"LayoutDashboard\", \"BookOpen\", etc.).",
+          "impact": "Experiencia ruidosa para usuarios de lectores de pantalla.",
+          "fix": "Agregar `aria-hidden=\"true\"` en todos los iconos decorativos (no interactivos).",
+          "effort": "20 min (global)",
+          "depends_on": []
+        },
+        {
+          "id": "UIX-004",
+          "title": "Contraste insuficiente en dark mode para texto terciario",
+          "severity": "medium",
+          "file": "src/index.css (línea 43)",
+          "detail": "`--theme-text-tertiary: #64748b` sobre fondo oscuro `#0f172a` tiene una relación de contraste de ~4.2:1. WCAG AA requiere 4.5:1 para texto normal y 3:1 para texto grande. Está en el límite pero puede ser insuficiente para texto pequeño (10px-12px).",
+          "impact": "Textos pequeños como `text-[10px]` y `text-xs` pueden ser difíciles de leer en dark mode.",
+          "fix": "Aclarar `--theme-text-tertiary` a `#94a3b8` o `#cbd5e1` en dark mode para mejorar contraste.",
+          "effort": "5 min",
+          "depends_on": []
+        },
+        {
+          "id": "UIX-005",
+          "title": "Botón Cerrar sesión sin aria-label en MainLayout",
+          "severity": "medium",
+          "file": "src/components/MainLayout.tsx (líneas 44-50)",
+          "detail": "El botón de logout solo tiene un icono LogOut y un `title=\"Cerrar sesión\"` (correcto), pero falta `aria-label` para lectores de pantalla que no usan tooltip.",
+          "impact": "Accesibilidad parcial.",
+          "fix": "Agregar `aria-label=\"Cerrar sesión\"` al botón.",
+          "effort": "2 min",
+          "depends_on": []
+        },
+        {
+          "id": "UIX-006",
+          "title": "Sin focus visible en inputs de AuthPage",
+          "severity": "medium",
+          "file": "src/pages/AuthPage.tsx",
+          "detail": "Los inputs tienen `focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/50` que es sutil. En dark mode, el ring de 1px puede no ser suficientemente visible para navegación por teclado.",
+          "impact": "Usuarios que navegan con teclado pueden perder el foco visual.",
+          "fix": "Usar `focus-visible:ring-2 focus-visible:ring-violet-500` con outline offset.",
+          "effort": "10 min",
+          "depends_on": []
+        },
+        {
+          "id": "UIX-007",
+          "title": "Loading state granular ausente en InicioPage",
+          "severity": "medium",
+          "file": "src/pages/InicioPage.tsx",
+          "detail": "InicioPage no tiene un estado loading. Mientras se cargan las 6 queries paralelas, la página se muestra vacía (o con valores por defecto como 0). Cuando todas terminan, aparece todo de golpe.",
+          "impact": "Percepción de lentitud. No hay feedback de que la app está trabajando.",
+          "fix": "Mostrar skeleton por sección mientras carga. O al menos un spinner global.",
+          "effort": "30 min",
+          "depends_on": []
+        },
+        {
+          "id": "UIX-008",
+          "title": "Espaciado vertical inconsistente entre páginas",
+          "severity": "low",
+          "file": "Todas las páginas protegidas",
+          "detail": "La mayoría usa `space-y-6` en el contenedor principal, pero algunas secciones internas tienen espaciados diferentes. InicioPage tiene `gap-3 md:gap-4` en grids, mientras que otras páginas varían.",
+          "impact": "Inconsistencia visual menor.",
+          "fix": "Estandarizar espaciados según DESIGN.md.",
+          "effort": "20 min",
+          "depends_on": []
+        },
+        {
+          "id": "UIX-009",
+          "title": "Skeleton loading genérico en RetosPage",
+          "severity": "low",
+          "file": "src/pages/RetosPage.tsx (líneas 98-101, 131-134)",
+          "detail": "Los skeletons son genéricos (bloques grises) sin forma de card, sin iconos placeholder. No reflejan la estructura real del contenido que reemplazan.",
+          "impact": "Menor. El skeleton da feedback de carga pero no es informativo.",
+          "fix": "Diseñar skeletons que imiten la forma de las cards reales.",
+          "effort": "20 min",
+          "depends_on": []
+        },
+        {
+          "id": "UIX-010",
+          "title": "Overflow en textos de cards pequeñas",
+          "severity": "low",
+          "file": "MisFinanzasPage.tsx, RetosPage.tsx, PerfilPage.tsx",
+          "detail": "Algunas cards no tienen `truncate` en textos largos. En mobile, textos de títulos largos pueden romper el layout.",
+          "impact": "Layout roto en mobile para contenido largo.",
+          "fix": "Agregar `truncate` a textos en cards que puedan ser largos.",
+          "effort": "10 min",
+          "depends_on": []
+        },
+        {
+          "id": "UIX-011",
+          "title": "Botones 'Nuevo' en MisFinanzasPage sin micro-interacciones",
+          "severity": "low",
+          "file": "src/pages/MisFinanzasPage.tsx (líneas 87, 109)",
+          "detail": "Los botones \"+ Nuevo\" en ingresos y gastos son texto sin hover state visible (solo cambio de color). No tienen cursor pointer consistente ni feedback de click.",
+          "impact": "Experiencia plana, sin indicación de interactividad.",
+          "fix": "Agregar `cursor-pointer`, hover background, y transición como en el resto de botones.",
+          "effort": "10 min",
+          "depends_on": []
+        },
+        {
+          "id": "UIX-012",
+          "title": "Transiciones de sidebar mejorables en foco",
+          "severity": "low",
+          "file": "src/components/Sidebar.tsx",
+          "detail": "Los NavLink tienen transiciones generales pero no hay diferencia visual entre hover y focus. Un usuario de teclado no puede ver fácilmente qué item está seleccionado.",
+          "impact": "Navegación por teclado dificultosa.",
+          "fix": "Agregar estilos `focus-visible:` con ring o fondo similar al hover.",
+          "effort": "10 min",
+          "depends_on": []
+        },
+        {
+          "id": "UIX-013",
+          "title": "PerfilPage: avatar sin inicial cuando no hay nombre",
+          "severity": "low",
+          "file": "src/pages/PerfilPage.tsx (línea 80)",
+          "detail": "`firstName?.[0]?.toUpperCase() || lastName?.[0]?.toUpperCase() || 'U'` — si ambas son null, muestra 'U'. Funcional pero podría ser más descriptivo.",
+          "impact": "Cosmético.",
+          "fix": "Usar inicial del email si el nombre no está disponible.",
+          "effort": "5 min",
+          "depends_on": []
+        },
+        {
+          "id": "UIX-014",
+          "title": "Historial de puntos en RetosPage sin empty state",
+          "severity": "low",
+          "file": "src/pages/RetosPage.tsx (línea 204)",
+          "detail": "El historial de puntos solo se renderiza si hay datos (`pointsHistory.length > 0`). Si no hay historial, la sección desaparece completamente sin explicación. Las otras secciones tienen empty state explícito.",
+          "impact": "Inconsistencia: el usuario no sabe por qué no ve el historial.",
+          "fix": "Renderizar la sección incluso vacía, con mensaje \"Sin historial de puntos aún\".",
+          "effort": "10 min",
+          "depends_on": []
+        }
+      ]
+    },
+
+    "P4_infrastructure": {
+      "label": "🔵 PRIORIDAD 4 — INFRAESTRUCTURA Y DEUDA TÉCNICA (8 issues)",
+      "risk": "BAJO — No afecta funcionalidad actual, pero frena el desarrollo futuro y la colaboración en equipo.",
+      "items": [
+        {
+          "id": "INF-001",
+          "title": "Directorio supabase/ no existe (sin migraciones, sin seeds)",
+          "severity": "medium",
+          "file": "N/A",
+          "detail": "No hay `supabase/migrations/`, `supabase/seed.sql`, ni `supabase/config.toml`. No hay forma de replicar la BD en otro entorno. AGENTS.md lo marca como pendiente.",
+          "impact": "Imposible tener entornos de desarrollo/QA/producción consistentes.",
+          "fix": "Crear directorio supabase/ con migraciones iniciales, seeds y configuración.",
+          "effort": "4-6 horas",
+          "depends_on": []
+        },
+        {
+          "id": "INF-002",
+          "title": "src/hooks/ vacío — sin hooks personalizados",
+          "severity": "low",
+          "file": "src/hooks/",
+          "detail": "No hay hooks. Patrones como `useDataLoader` para manejar loading/error/data podrían extraerse, dado que se repite en todas las páginas.",
+          "impact": "Código repetido en todas las páginas para manejar estados de carga.",
+          "fix": "Crear hook `useSupabaseQuery<T>` que maneje loading/error/data automáticamente.",
+          "effort": "1-2 horas",
+          "depends_on": []
+        },
+        {
+          "id": "INF-003",
+          "title": "src/styles/ vacío — sin estilos compartidos",
+          "severity": "low",
+          "file": "src/styles/",
+          "detail": "No hay archivos de estilos compartidos. Todo está en Tailwind inline o en index.css.",
+          "impact": "Menor. Tailwind maneja la mayoría de estilos, pero podrían extraerse @layer utilities.",
+          "fix": "Mover patrones repetidos a @apply en un archivo de estilos.",
+          "effort": "30 min",
+          "depends_on": []
+        },
+        {
+          "id": "INF-004",
+          "title": "src/assets/ vacío — sin assets",
+          "severity": "low",
+          "file": "src/assets/",
+          "detail": "No hay imágenes, SVGs u otros assets.",
+          "impact": "Ninguno por ahora.",
+          "fix": "Agregar favicon, logo SVG, etc.",
+          "effort": "30 min",
+          "depends_on": []
+        },
+        {
+          "id": "INF-005",
+          "title": "Faltan seeds de BD (solo ~50% completado)",
+          "severity": "medium",
+          "file": "N/A",
+          "detail": "Solo existen seeds para: levels (10), avatars (10), badges (14), daily_tips (16), modules (5), categories (10 income + 16 expense), lessons (1). Faltan: challenges (0), achievements (0), streaks (0), quizzes, simulators, missions.",
+          "impact": "La app tiene secciones vacías (retos, logros, streaks, quizzes). Los usuarios no pueden interactuar con gamificación.",
+          "fix": "Crear seeds completos para challenges (10+), achievements (10+), streaks (5+), quizzes, missions.",
+          "effort": "2-3 horas",
+          "depends_on": ["INF-001"]
+        },
+        {
+          "id": "INF-006",
+          "title": "Sin schema de migraciones SQL",
+          "severity": "medium",
+          "file": "N/A",
+          "detail": "Las 41 tablas existen en la BD local pero no hay archivos .sql de migración. No hay control de versiones del schema.",
+          "impact": "No se pueden replicar cambios de schema entre desarrolladores ni entornos.",
+          "fix": "Generar migración inicial con pg_dump o Supabase CLI. Crear workflow de migraciones.",
+          "effort": "2-3 horas",
+          "depends_on": ["INF-001"]
+        },
+        {
+          "id": "INF-007",
+          "title": "Sin CI/CD pipeline",
+          "severity": "low",
+          "file": "N/A",
+          "detail": "No hay GitHub Actions ni scripts de deploy. El build se hace manualmente con `pnpm build`.",
+          "impact": "Deploys manuales propensos a error.",
+          "fix": "Crear GitHub Actions para lint → test → build → deploy.",
+          "effort": "2-3 horas",
+          "depends_on": []
+        },
+        {
+          "id": "INF-008",
+          "title": "Sin archivo .nvmrc ni lock de versión de Node",
+          "severity": "low",
+          "file": "N/A",
+          "detail": "No se especifica versión de Node. package.json no tiene `engines` ni hay .nvmrc. Diferentes versiones de Node pueden causar comportamientos inconsistentes.",
+          "impact": "Posibles bugs difíciles de reproducir por versiones diferentes de Node.",
+          "fix": "Crear .nvmrc y agregar `engines` en package.json.",
+          "effort": "5 min",
+          "depends_on": []
+        }
+      ]
+    }
+  },
+
+  "quick_wins": [
+    {
+      "id": "QW-001",
+      "title": "Agregar aria-labels a ThemeToggle, BottomNav y botón logout",
+      "effort": "10 min",
+      "impact": "Alto (accesibilidad)"
+    },
+    {
+      "id": "QW-002",
+      "title": "Agregar aria-hidden=\"true\" a iconos decorativos",
+      "effort": "10 min",
+      "impact": "Alto (accesibilidad)"
+    },
+    {
+      "id": "QW-003",
+      "title": "Usar maybeSingle() en AuthContext.fetchProfile()",
+      "effort": "5 min",
+      "impact": "Alto (previene crash)"
+    },
+    {
+      "id": "QW-004",
+      "title": "Agregar estado loading en MisFinanzasPage",
+      "effort": "10 min",
+      "impact": "Medio (UX)"
+    },
+    {
+      "id": "QW-005",
+      "title": "Reordenar imports según convención",
+      "effort": "10 min",
+      "impact": "Bajo (consistencia)"
+    },
+    {
+      "id": "QW-006",
+      "title": "Crear componente ProgressBar reutilizable",
+      "effort": "20 min",
+      "impact": "Alto (reduce duplicación)"
+    },
+    {
+      "id": "QW-007",
+      "title": "Crear componente EmptyState reutilizable",
+      "effort": "15 min",
+      "impact": "Alto (reduce duplicación)"
+    },
+    {
+      "id": "QW-008",
+      "title": "Crear componente DifficultyBadge reutilizable",
+      "effort": "15 min",
+      "impact": "Medio (reduce duplicación)"
+    }
+  ],
+
+  "recommended_order": [
+    {
+      "step": 1,
+      "label": "SEGURIDAD — Implementar RLS policies (SEC-001 a SEC-003)",
+      "effort": "2-3 horas",
+      "items": ["SEC-001", "SEC-002", "SEC-003"],
+      "rationale": "Sin RLS, cualquier otro arreglo es cosmético. Es la vulnerabilidad más crítica."
+    },
+    {
+      "step": 2,
+      "label": "SEGURIDAD — Validación de inputs y manejo de errores (SEC-004 a SEC-008)",
+      "effort": "1-2 horas",
+      "items": ["SEC-004", "SEC-006", "SEC-007"],
+      "rationale": "Evita datos corruptos y crashes silenciosos."
+    },
+    {
+      "step": 3,
+      "label": "CÓDIGO — Eliminar as unknown as y tipar correctamente (COD-001, COD-002)",
+      "effort": "2-3 horas",
+      "items": ["COD-001", "COD-002"],
+      "rationale": "Recupera type safety completo en todas las páginas."
+    },
+    {
+      "step": 4,
+      "label": "CÓDIGO — Optimizar N+1 en AprenderPage (COD-003)",
+      "effort": "1-2 horas",
+      "items": ["COD-003"],
+      "rationale": "Mejora rendimiento de carga en la página más query-intensiva."
+    },
+    {
+      "step": 5,
+      "label": "CÓDIGO — Extraer patrones duplicados (COD-011 a COD-015)",
+      "effort": "1-2 horas",
+      "items": ["COD-011", "COD-012", "COD-013", "COD-015"],
+      "rationale": "Reduce código duplicado drásticamente. Incluye quick wins."
+    },
+    {
+      "step": 6,
+      "label": "UI/UX — Loading states y skeletons (UIX-007, COD-006, COD-007)",
+      "effort": "1 hora",
+      "items": ["UIX-007", "COD-006", "COD-007"],
+      "rationale": "Feedback visual de carga. Mejora percepción de velocidad."
+    },
+    {
+      "step": 7,
+      "label": "UI/UX — Accesibilidad (UIX-001 a UIX-006, UIX-012)",
+      "effort": "1 hora",
+      "items": ["UIX-001", "UIX-002", "UIX-003", "UIX-005", "UIX-006", "UIX-012"],
+      "rationale": "WCAG compliance básico. Incluye quick wins."
+    },
+    {
+      "step": 8,
+      "label": "CÓDIGO — Manejo de errores y cleanup (COD-008 a COD-010)",
+      "effort": "1 hora",
+      "items": ["COD-008", "COD-009", "COD-010"],
+      "rationale": "Resiliencia ante fallos de red/BD."
+    },
+    {
+      "step": 9,
+      "label": "INFRA — Migraciones y seeds (INF-001, INF-005, INF-006)",
+      "effort": "4-6 horas",
+      "items": ["INF-001", "INF-005", "INF-006"],
+      "rationale": "Permite colaboración y entornos reproducibles."
+    },
+    {
+      "step": 10,
+      "label": "UI/UX — Contraste, espaciados, refinamientos (UIX-004, UIX-008 a UIX-014)",
+      "effort": "1-2 horas",
+      "items": ["UIX-004", "UIX-008", "UIX-009", "UIX-010", "UIX-011", "UIX-013", "UIX-014"],
+      "rationale": "Pulido visual final."
+    },
+    {
+      "step": 11,
+      "label": "INFRA — CI/CD, hooks, tests (INF-002, INF-003, INF-007, INF-008, COD-018)",
+      "effort": "6-8 horas",
+      "items": ["INF-002", "INF-003", "INF-007", "INF-008", "COD-018"],
+      "rationale": "Madurez del proyecto a largo plazo."
+    }
+  ],
+
+  "global_fixes": [
+    {
+      "scope": "Todas las páginas protegidas",
+      "fix": "Agregar manejo de error en queries Supabase (try/catch + feedback visual)",
+      "effort": "1-2 horas"
+    },
+    {
+      "scope": "Todas las páginas protegidas",
+      "fix": "Agregar cleanup en useEffect (AbortController o flag cancelled)",
+      "effort": "30 min"
+    },
+    {
+      "scope": "Todas las páginas protegidas",
+      "fix": "Agregar aria-hidden=true en todos los iconos decorativos",
+      "effort": "20 min"
+    },
+    {
+      "scope": "Toda la app",
+      "fix": "Implementar RLS policies en las 41 tablas",
+      "effort": "2-3 horas"
+    }
+  ]
+}

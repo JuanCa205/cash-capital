@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- Piggy bank SVG icon - minimalista, plano, violeta -->
+  <g fill="#8B5CF6">
+    <!-- Cuerpo -->
+    <ellipse cx="16" cy="20" rx="10" ry="7"/>
+    <!-- Cabeza -->
+    <circle cx="16" cy="14" r="6"/>
+    <!-- Orejas -->
+    <polygon points="11,10 10,6 13,9"/>
+    <polygon points="21,10 22,6 19,9"/>
+    <!-- Hocico -->
+    <ellipse cx="16" cy="16" rx="2.5" ry="1.5" fill="#A78BFA"/>
+    <!-- Ojos -->
+    <circle cx="13.5" cy="13" r="1.2" fill="#1E1B4B"/>
+    <circle cx="18.5" cy="13" r="1.2" fill="#1E1B4B"/>
+    <!-- Moneda (alcancía) -->
+    <circle cx="16" cy="21" r="1.8" fill="#FBBF24"/>
+    <text x="16" y="22.2" text-anchor="middle" font-size="2.2" font-weight="bold" fill="#92400E">$</text>
+    <!-- Cola rizada -->
+    <path d="M24,18 C27,17 27,20 25,21" fill="none" stroke="#8B5CF6" stroke-width="1.2" stroke-linecap="round"/>
+  </g>
+</svg>

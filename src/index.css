@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    border-color: var(--theme-border);
+  }
+
+  body {
+    background: var(--theme-bg);
+    color: var(--theme-text);
+  }
+}
+
+:root {
+  --gradient-from: #f8fafc;
+  --gradient-via: #eef2ff;
+  --gradient-to: #f8fafc;
+  --theme-bg: #f8fafc;
+  --theme-surface: rgba(255, 255, 255, 0.8);
+  --theme-border: #e2e8f0;
+  --theme-muted: #f1f5f9;
+  --theme-text: #0f172a;
+  --theme-text-secondary: #475569;
+  --theme-text-tertiary: #64748b;
+  --theme-input: #ffffff;
+  --theme-input-border: #cbd5e1;
+}
+
+[data-theme="dark"] {
+  --gradient-from: #0f172a;
+  --gradient-via: #1e1b4b;
+  --gradient-to: #0f172a;
+  --theme-bg: #0f172a;
+  --theme-surface: rgba(255, 255, 255, 0.06);
+  --theme-border: rgba(255, 255, 255, 0.08);
+  --theme-muted: rgba(255, 255, 255, 0.05);
+  --theme-text: #f8fafc;
+  --theme-text-secondary: #94a3b8;
+  --theme-text-tertiary: #94a3b8;
+  --theme-input: rgba(255, 255, 255, 0.05);
+  --theme-input-border: rgba(255, 255, 255, 0.10);
+}

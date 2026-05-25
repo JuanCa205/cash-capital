@@ -1,0 +1,33 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // Cargar AGENTS.md como instrucciones base en todo el proyecto
+  "instructions": ["AGENTS.md"],
+
+  // Configuración del agente build (modo por defecto)
+  "agent": {
+    "build": {
+      "prompt": "Sigue ESTRICTAMENTE las reglas de AGENTS.md. Usa pnpm, no npm. Tailwind siempre, Lucide para iconos, TypeScript estricto. Lee DB_SCHEMA.md antes de cualquier query a Supabase. Lee COMPONENTS.md antes de crear UI nueva. Maneja estados loading/empty/data en cada página."
+    },
+    "plan": {
+      "prompt": "Sigue ESTRICTAMENTE las reglas de AGENTS.md. Prioriza el plan antes de codificar (regla 20). Ofrece opciones simple/compleja (regla 22)."
+    }
+  },
+
+  // Permisos del proyecto
+  "permission": {
+    "bash": {
+      "pnpm": "allow",
+      "npm": "deny",
+      "git": "allow",
+      "ls": "allow",
+      "mkdir": "allow",
+      "cat": "allow"
+    },
+    "read": "allow",
+    "edit": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow"
+  }
+}
