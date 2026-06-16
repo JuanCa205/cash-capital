@@ -1,73 +1,88 @@
-# React + TypeScript + Vite
+# Cash Capital 💰
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> App web de gamificación financiera — aprende finanzas personales mientras juegas.
 
-Currently, two official plugins are available:
+**Stack**: React 19 + Vite 8 + TypeScript 6 + Tailwind CSS 3.4 + Supabase
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## Requisitos
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Node.js 22** (`.nvmrc` configurado)
+- **pnpm** (`corepack enable && corepack prepare pnpm@latest --activate`)
 
-## Expanding the ESLint configuration
+## Inicio rápido
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+```bash
+# Instalar dependencias
+pnpm install
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+# Copiar variables de entorno
+cp .env.example .env
+# Editar .env con VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Iniciar servidor de desarrollo
+pnpm dev
+# → http://localhost:5173
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Comandos
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+| Comando | Descripción |
+|---------|-------------|
+| `pnpm dev` | Servidor de desarrollo (localhost:5173) |
+| `pnpm build` | Build de producción (`tsc -b && vite build`) |
+| `pnpm lint` | ESLint sobre todo el proyecto |
+| `pnpm preview` | Vista previa del build de producción |
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Scripts disponibles
+
+```bash
+pnpm dev       # → http://localhost:5173
+pnpm build     # Build de producción
+pnpm lint      # ESLint
+pnpm preview   # Vista previa del build
+pnpm add <pkg> # Instalar dependencia
 ```
+
+## Estructura del proyecto
+
+```
+src/
+├── components/     # 10 componentes reutilizables (Sidebar, ProgressBar, etc.)
+├── contexts/       # ThemeContext + AuthContext
+├── hooks/          # useSupabaseQuery
+├── pages/          # 7 páginas (Home, Auth, Inicio, Aprender, MisFinanzas, Retos, Perfil)
+├── lib/            # Cliente Supabase + utilidades
+└── types/          # Interfaces TS para 41 tablas BD
+```
+
+## Documentación
+
+| Documento | Contenido |
+|-----------|-----------|
+| `AGENTS.md` | Documento maestro — stack, routing, auth, layout, reglas |
+| `docs/DB_SCHEMA.md` | Esquema completo de BD (41 tablas, enums, índices) |
+| `docs/DESIGN.md` | Sistema de diseño (CSS vars, Tailwind, principios) |
+| `docs/COMPONENTS.md` | Catálogo de componentes reutilizables |
+| `docs/FEATURES.md` | Mapa de 147 funcionalidades (completadas y pendientes) |
+
+## Links de navegación
+
+Abre estas URLs mientras el servidor de desarrollo esté corriendo (`pnpm dev`):
+
+| Página | URL | Descripción |
+|--------|-----|-------------|
+| Inicio | http://localhost:5173/ | Landing page principal |
+| Login | http://localhost:5173/login | Iniciar sesión |
+| Registro | http://localhost:5173/register | Crear cuenta nueva |
+
+## Equipo
+
+- **Diego Alejandro Calderon Veloza** — [@DiegoCalderonV](https://github.com/DiegoCalderonV)
+- **Juan David Carreño Gomez** — [@JuanCa205](https://github.com/JuanCa205)
+- **Juan Sebastian Coy Duarte** — [@JuanCoyDuarte](https://github.com/JuanCoyDuarte)
+
+## Licencia
+
+MIT — ver [LICENSE](LICENSE).

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { timeAgo, formatActivity } from '../lib/utils'
 import { useAuth } from '../contexts/AuthContext'
-import MainLayout from '../components/MainLayout'
 import StatCard from '../components/StatCard'
 import SectionCard from '../components/SectionCard'
 import ProgressBar from '../components/ProgressBar'
@@ -86,8 +85,7 @@ export default function InicioPage() {
 
   if (loading) {
     return (
-      <MainLayout>
-        <div className="space-y-6">
+      <div className="space-y-6">
           <div className="animate-pulse space-y-2">
             <div className="h-8 bg-theme-muted rounded w-1/3" />
             <div className="h-4 bg-theme-muted rounded w-1/4" />
@@ -132,13 +130,11 @@ export default function InicioPage() {
             </div>
           </div>
         </div>
-      </MainLayout>
     )
   }
 
   return (
-    <MainLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div>
           <h1 className="font-heading text-2xl font-bold text-theme-text">
             ¡Hola, {profile?.first_name || 'Financiero'}!
@@ -212,7 +208,6 @@ export default function InicioPage() {
           </div>
         </div>
       </div>
-    </MainLayout>
   )
 }
 

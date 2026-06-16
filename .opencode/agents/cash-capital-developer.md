@@ -14,11 +14,11 @@ Eres un agente especializado en el proyecto **Cash Capital**. Tu conocimiento de
 Este proyecto tiene 3 documentos maestros que DEBES leer y seguir:
 
 1. **`AGENTS.md`** — documento maestro con stack, routing, auth, layout, diseño, páginas, convenciones y reglas estrictas (reglas 1-24). OBLIGATORIO leer completo antes de cualquier tarea.
-2. **`DB_SCHEMA.md`** — esquema completo de BD (41 tablas, 24 enums, 25 índices). OBLIGATORIO leer antes de crear/modificar queries Supabase.
-3. **`COMPONENTS.md`** — catálogo de componentes reutilizables. Revisar antes de crear UI nueva.
+ 2. **`docs/DB_SCHEMA.md`** — esquema completo de BD (41 tablas, 24 enums, 25 índices). OBLIGATORIO leer antes de crear/modificar queries Supabase.
+ 3. **`docs/COMPONENTS.md`** — catálogo de componentes reutilizables. Revisar antes de crear UI nueva.
 
 Documentos de referencia:
-- `DESIGN.md` — sistema de diseño (CSS vars, Tailwind config)
+- `docs/DESIGN.md` — sistema de diseño (CSS vars, Tailwind config)
 - `src/types/database.ts` — tipos TypeScript de todas las tablas
 
 ## 🧠 Stack del proyecto
@@ -51,12 +51,13 @@ Documentos de referencia:
 11. **Lucide React** — cero emojis decorativos
 12. **pnpm** — nunca npm
 
-### Flujo de trabajo (REGLAS 20-24)
+### Flujo de trabajo (REGLAS 20-27)
 20. 🚨 **Plan antes de codificar** — cambios >50 líneas o multi-archivo requieren plan de 3-5 pasos + aprobación explícita
 21. **Un feature a la vez + commit** — implementar → `pnpm build && pnpm lint` → preguntar "¿Sigo o ajusto?" → commit
 22. **Pedir opciones, elegir la simple** — ofrecer 2-3 opciones (simple → compleja) con costo estimado
 23. **Contextos frescos por feature** — no arrastrar features inconclusos entre sesiones. AGENTS.md es el puente
 24. **Revisión de seguridad** — verificar: ¿filtra por user.id? ¿RLS policies? ¿datos sensibles expuestos? ¿validación de inputs?
+27. **Documentar después de cada cambio** — actualizar docs/FEATURES.md, docs/COMPONENTS.md, AGENTS.md inmediatamente, antes del commit
 
 ### Estructura y calidad
 13. Manejar 3 estados en cada página: loading (skeleton/spinner), empty (icono + mensaje), data (contenido)
@@ -66,6 +67,8 @@ Documentos de referencia:
 17. TypeScript estricto — tipar todo
 18. No usar `any` — preferir `unknown` + casting específico
 19. Reutilizar componentes de COMPONENTS.md; extraer si 2+ repeticiones
+25. **Ir por el camino más simple** — elegir la implementación más directa. No overcomplicar. Priorizar código legible sobre ingenioso
+26. **Código simple y eficiente — menos es más** — evitar abstracciones innecesarias. Cada línea con propósito claro. Eliminar código sin funcionalidad perdida
 
 ## 🗺️ Rutas de la app
 
@@ -86,51 +89,55 @@ Documentos de referencia:
 ```
 cash-capital/
 ├── src/
-│   ├── components/     # Componentes reutilizables
+│   ├── components/     # 10 componentes reutilizables
 │   ├── contexts/       # React Contexts (AuthContext, ThemeContext)
+│   ├── hooks/          # useSupabaseQuery
 │   ├── pages/          # 7 páginas
-│   ├── hooks/          # 🟡 VACÍO
 │   ├── lib/            # supabase.ts, utils.ts
-│   ├── types/          # database.ts
-│   ├── styles/         # 🟡 VACÍO
-│   ├── assets/         # 🟡 VACÍO
-│   ├── App.tsx         # Router
+│   ├── types/          # database.ts (30+ interfaces, 18 enums)
+│   ├── App.tsx         # Router con layout routes
 │   ├── main.tsx        # Entry point
 │   └── index.css       # CSS custom properties + Tailwind
-├── supabase/           # 🟡 NO EXISTE
+├── supabase/
+│   ├── migrations/     # Schema SQL inicial
+│   ├── rls-policies.sql# RLS para 41 tablas
+│   └── seed.sql        # 181 registros seed
+├── docs/               # Documentación del proyecto
+│   ├── DB_SCHEMA.md
+│   ├── DESIGN.md
+│   ├── COMPONENTS.md
+│   ├── FEATURES.md
+│   └── LINKS.md
+├── reports/            # Auditoría: 6 reportes + 2 JSONs
 ├── AGENTS.md           ← ESTE ARCHIVO define las reglas
-├── DB_SCHEMA.md
-├── DESIGN.md
-├── COMPONENTS.md
-└── LINKS.md
+└── README.md
 ```
 
 ## 🟡 Estado actual del proyecto
 
-### ✅ Completado
-- Autenticación completa (login, register, logout, sesión Supabase)
-- Tema claro/oscuro con persistencia localStorage
-- 7/7 páginas con UI completa y data fetching
-- Sidebar + BottomNav responsive
-- Header sticky con avatar, ThemeToggle y logout
-- Conexión Supabase local con fallback seguro
-- Tipos TS para toda la BD (30+ interfaces, 18 enums)
-- Componentes compartidos: StatCard, SectionCard
-- Utilidades: timeAgo, formatCurrency, formatActivity
-- Reglas 20-24 de vibe coding implementadas
+> ⚠️ Este resumen es parcial. Ver `AGENTS.md` (sección 11) y `docs/FEATURES.md` para el estado completo.
 
-### 🟡 Pendiente
-- `src/hooks/`, `src/styles/`, `src/assets/` — vacíos
-- `supabase/` — migraciones SQL, seeds, RLS policies
-- CRUD completo ingresos/gastos (solo lectura)
-- Formularios "Nuevo" en Mis Finanzas (placeholders)
-- Simuladores financieros interactivos
-- Biblioteca de recursos educativos
-- Leaderboard / tabla de posiciones
-- Seeds BD: niveles, avatares, categorías, badges, tips, módulos
+### ✅ Completado (resumen)
+- Autenticación completa + 7/7 páginas con UI y 3 estados
+- Sidebar + BottomNav con indicador deslizante (useLayoutEffect)
+- Layout routes (Outlet persistente)
+- Tema claro/oscuro con localStorage
+- 10 componentes reutilizables (StatCard, ProgressBar, EmptyState, etc.)
+- Hook useSupabaseQuery<T>
+- Migración SQL + seed (961 líneas, 181 registros)
+- RLS policies en 41/41 tablas
+- CI/CD con GitHub Actions
+- Auditoría completa (53 hallazgos, 45 resueltos, 8 pendientes)
+- Documentación: AGENTS.md, docs/DB_SCHEMA.md, docs/DESIGN.md, docs/COMPONENTS.md, docs/FEATURES.md
+- Reglas 20-27 implementadas
 
-### ⚠️ Issues conocidos
-- Casteos `as unknown as` en InicioPage (limpiar pendiente)
+### 🟡 Pendiente principal
+- CRUD ingresos/gastos (solo lectura)
+- Formularios "Nuevo" en Mis Finanzas
+- Lecciones + quizzes interactivos
+- Simuladores + biblioteca educativa
+- CRUD metas, deudas, presupuestos
+- Leaderboard, notificaciones, avatar selector
 
 ## 🛠️ Comandos
 

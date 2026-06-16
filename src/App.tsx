@@ -1,6 +1,7 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, Outlet } from 'react-router-dom'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
+import MainLayout from './components/MainLayout'
 import HomePage from './pages/HomePage'
 import AuthPage from './pages/AuthPage'
 import InicioPage from './pages/InicioPage'
@@ -10,7 +11,7 @@ import RetosPage from './pages/RetosPage'
 import PerfilPage from './pages/PerfilPage'
 import { Loader2 } from 'lucide-react'
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute() {
   const { user, loading } = useAuth()
 
   if (loading) {
@@ -22,7 +23,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) return <Navigate to="/login" replace />
-  return <>{children}</>
+  return <Outlet />
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
@@ -47,11 +48,18 @@ function App() {
         <Route path="/" element={<PublicRoute><HomePage /></PublicRoute>} />
         <Route path="/login" element={<PublicRoute><AuthPage initialMode="login" /></PublicRoute>} />
         <Route path="/register" element={<PublicRoute><AuthPage initialMode="register" /></PublicRoute>} />
-        <Route path="/inicio" element={<ProtectedRoute><InicioPage /></ProtectedRoute>} />
-        <Route path="/aprender" element={<ProtectedRoute><AprenderPage /></ProtectedRoute>} />
-        <Route path="/mis-finanzas" element={<ProtectedRoute><MisFinanzasPage /></ProtectedRoute>} />
-        <Route path="/retos" element={<ProtectedRoute><RetosPage /></ProtectedRoute>} />
-        <Route path="/perfil" element={<ProtectedRoute><PerfilPage /></ProtectedRoute>} />
+
+        {/* Rutas protegidas con layout persistente */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<MainLayout />}>
+            <Route path="/inicio" element={<InicioPage />} />
+            <Route path="/aprender" element={<AprenderPage />} />
+            <Route path="/mis-finanzas" element={<MisFinanzasPage />} />
+            <Route path="/retos" element={<RetosPage />} />
+            <Route path="/perfil" element={<PerfilPage />} />
+          </Route>
+        </Route>
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

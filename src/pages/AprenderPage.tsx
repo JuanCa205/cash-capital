@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import MainLayout from '../components/MainLayout'
 import ProgressBar from '../components/ProgressBar'
 import DifficultyBadge from '../components/DifficultyBadge'
 import EmptyState from '../components/EmptyState'
@@ -71,8 +70,7 @@ export default function AprenderPage() {
   const totalLessons = modules.reduce((sum, m) => sum + m.lessons.length, 0)
 
   return (
-    <MainLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-heading text-2xl font-bold text-theme-text">Aprender</h1>
@@ -177,6 +175,5 @@ export default function AprenderPage() {
           </div>
         </div>
       </div>
-    </MainLayout>
   )
 }

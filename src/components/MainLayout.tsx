@@ -1,12 +1,11 @@
-import { type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Outlet } from 'react-router-dom'
 import { PiggyBank, LogOut } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import ThemeToggle from './ThemeToggle'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
 
-export default function MainLayout({ children }: { children: ReactNode }) {
+export default function MainLayout() {
   const { profile, logout } = useAuth()
   const navigate = useNavigate()
 
@@ -54,7 +53,7 @@ export default function MainLayout({ children }: { children: ReactNode }) {
         </header>
 
         <main className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
-          {children}
+          <Outlet />
         </main>
       </div>
     </div>

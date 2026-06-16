@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import MainLayout from '../components/MainLayout'
 import MiniCard from '../components/MiniCard'
 import { Wallet, TrendingUp, TrendingDown, PiggyBank, CreditCard, Target } from 'lucide-react'
 import type { Income, Expense, Budget, SavingGoal, Debt } from '../types/database'
@@ -65,8 +64,7 @@ export default function MisFinanzasPage() {
 
   if (loading) {
     return (
-      <MainLayout>
-        <div className="space-y-6">
+      <div className="space-y-6">
           <div className="animate-pulse space-y-4">
             <div className="h-8 bg-theme-muted rounded w-1/3" />
             <div className="h-4 bg-theme-muted rounded w-1/4" />
@@ -90,13 +88,11 @@ export default function MisFinanzasPage() {
             ))}
           </div>
         </div>
-      </MainLayout>
     )
   }
 
   return (
-    <MainLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div>
           <h1 className="font-heading text-2xl font-bold text-theme-text">Mis Finanzas</h1>
           <p className="text-theme-text-secondary text-sm mt-1">Controla tus ingresos, gastos y más</p>
@@ -186,7 +182,6 @@ export default function MisFinanzasPage() {
           }))} empty="Sin presupuestos" />
         </div>
       </div>
-    </MainLayout>
   )
 }
 

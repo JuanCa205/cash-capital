@@ -1,6 +1,6 @@
 # Cash Capital - Links de navegación
 
-> Abre estas URLs mientras el servidor de desarrollo esté corriendo (`npm run dev`).
+> Abre estas URLs mientras el servidor de desarrollo esté corriendo (`pnpm dev`).
 
 | Página | URL | Descripción |
 |--------|-----|-------------|

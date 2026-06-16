@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase'
 import { sanitizeInput } from '../lib/utils'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import MainLayout from '../components/MainLayout'
 import EmptyState from '../components/EmptyState'
 import { User, Settings, Bell, DollarSign, Globe, LogOut, Palette } from 'lucide-react'
 import type { FinancialGoal } from '../types/database'
@@ -81,8 +80,7 @@ export default function PerfilPage() {
   }
 
   return (
-    <MainLayout>
-      <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-2xl">
         <div>
           <h1 className="font-heading text-2xl font-bold text-theme-text">Perfil</h1>
           <p className="text-theme-text-secondary text-sm mt-1">Tu información y configuración</p>
@@ -234,6 +232,5 @@ export default function PerfilPage() {
           Cerrar sesión
         </button>
       </div>
-    </MainLayout>
   )
 }
